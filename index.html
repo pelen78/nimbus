@@ -42,10 +42,13 @@
         :root {
             --bg-gradient: linear-gradient(135deg, #8EC5FC 0%, #E0C3FC 100%);
             /* Lighter Blue -> Lavender Aesthetic */
-            --card-bg: rgba(255, 255, 255, 0.15);
+            --card-bg: rgba(255, 255, 255, 0.3);
+            /* Stronger glass for dark text support */
             --card-border: rgba(255, 255, 255, 0.2);
-            --text-primary: #ffffff;
-            --text-secondary: rgba(255, 255, 255, 0.8);
+            --text-primary: #1e293b;
+            /* Dark Slate for better legibility on light gradients */
+            --text-secondary: #475569;
+            /* Lighter Slate */
             --accent-color: #ffd700;
             --shadow-soft: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
             --font-main: 'Inter', sans-serif;
@@ -94,7 +97,7 @@
         }
 
         .app {
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.25);
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
             border: 1px solid var(--card-border);
@@ -281,6 +284,25 @@
             filter: brightness(1.2) drop-shadow(0 0 10px rgba(255, 255, 255, 0.4));
         }
 
+        /* --- Dark Mode Overrides (Night, Storm, Rain) --- */
+        body.weather-night,
+        body.weather-storm,
+        body.weather-rainy {
+            --text-primary: #ffffff;
+            --text-secondary: rgba(255, 255, 255, 0.8);
+            --card-bg: rgba(255, 255, 255, 0.1);
+            /* Lighter glass for dark bg */
+        }
+
+        body.weather-night .search-box,
+        body.weather-storm .search-box,
+        body.weather-rainy .search-box {
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        /* Ensure icon buttons invert correctly in dark modes if needed, but white text handles it */
+        /* For light modes (default), icons are dark due to --text-primary */
+
         .search-box {
             display: flex;
             align-items: center;
@@ -390,6 +412,25 @@
             background: rgba(255, 255, 255, 0.1);
         }
 
+        .lang-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: var(--text-primary);
+            padding: 6px 10px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+            backdrop-filter: blur(5px);
+            color: var(--text-primary);
+        }
+
+        .lang-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
         /* Main Content */
         #main-content {
             padding: 0 20px 20px;
@@ -413,27 +454,34 @@
             z-index: 15;
             padding: 15px 0 10px;
             margin: 0;
-            background: rgba(255, 255, 255, 0.95);
-            /* Solid white background */
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
+            background: rgba(255, 255, 255, 0.65);
+            /* Initial Glass State */
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
             border-radius: 0 0 16px 16px;
-            /* Soft bottom rounding */
-            /* Compensate for main-content padding to stretch full width if desired,
-               but simple sticky inside padding is safer for now.
-               Actually, sticky works best if it covers the background content.
-               Let's keep it simple: just sticky the specific block. */
             margin-left: -20px;
             margin-right: -20px;
             padding-left: 20px;
             padding-right: 20px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+            box-shadow: none;
+            /* No shadow initially */
+            border-bottom: 1px solid rgba(255, 255, 255, 0);
+            /* Hidden border initially */
+            transition: background 0.3s ease, box-shadow 0.3s ease, border-bottom 0.3s ease;
 
             /* Text alignment & Color Flip for white background */
             text-align: center;
             margin-bottom: 20px;
-            color: #465375;
-            /* Nimbus Brand Blue-Grey */
+            color: #1e293b;
+            /* Darker Slate Blue-Grey for better contrast */
+        }
+
+        .weather-header.scrolled {
+            background: rgba(255, 255, 255, 0.95);
+            /* More solid on scroll */
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            /* Subtle divider */
         }
 
         .weather-header h1 {
@@ -1028,7 +1076,11 @@
                 <div class="search-box"><span class="material-symbols-rounded search-icon">search</span><input
                         type="text" id="city-search" placeholder="Search for a city..." autocomplete="off"><button
                         id="location-btn" class="icon-btn" aria-label="Use my location"><span
-                            class="material-symbols-rounded">my_location</span></button></div>
+                            class="material-symbols-rounded">my_location</span></button>
+                    <div class="lang-toggle-wrapper" style="margin-left: 10px;">
+                        <button id="lang-toggle" class="lang-btn">EN</button>
+                    </div>
+                </div>
             </header>
             <div class="app-header">
                 <div class="logo-wrapper">
@@ -1060,26 +1112,38 @@
                 <!-- Weather Details Grid -->
                 <section class="weather-details">
                     <div class="detail-card"><span class="material-symbols-rounded detail-icon">thermostat</span>
-                        <div class="detail-info"><span class="label">Feels Like</span><span class="value"
-                                id="feels-like">--°</span></div>
+                        <div class="detail-info"><span class="label" id="feels-like-label">Feels Like</span><span
+                                class="value" id="feels-like">--°</span></div>
                     </div>
                     <div class="detail-card"><span
                             class="material-symbols-rounded detail-icon">humidity_percentage</span>
-                        <div class="detail-info"><span class="label">Humidity</span><span class="value"
-                                id="humidity">--%</span></div>
+                        <div class="detail-info"><span class="label" id="humidity-label">Humidity</span><span
+                                class="value" id="humidity">--%</span></div>
                     </div>
                     <div class="detail-card"><span class="material-symbols-rounded detail-icon">air</span>
-                        <div class="detail-info"><span class="label">Wind</span><span class="value" id="wind-speed">--
+                        <div class="detail-info"><span class="label" id="wind-label">Wind</span><span class="value"
+                                id="wind-speed">--
                                 km/h</span></div>
                     </div>
                     <div class="detail-card"><span class="material-symbols-rounded detail-icon">rainy</span>
-                        <div class="detail-info"><span class="label">Rain Chance</span><span class="value"
-                                id="rain-chance">--%</span></div>
+                        <div class="detail-info"><span class="label" id="rain-chance-label">Rain Chance</span><span
+                                class="value" id="rain-chance">--%</span></div>
+                    </div>
+                    <!-- New: Moon Phase -->
+                    <div class="detail-card"><span class="material-symbols-rounded detail-icon">dark_mode</span>
+                        <div class="detail-info"><span class="label" id="moon-phase-label">Moon Phase</span><span
+                                class="value" id="moon-phase">--</span></div>
+                    </div>
+                    <!-- New: Sunrise/Sunset -->
+                    <div class="detail-card" id="sun-card"><span
+                            class="material-symbols-rounded detail-icon">wb_twilight</span>
+                        <div class="detail-info"><span class="label" id="sun-label">Sun</span><span class="value"
+                                id="sun-times">--</span></div>
                     </div>
                 </section>
                 <!-- Forecast Section -->
                 <section class="forecast-section">
-                    <h2>7-Day Forecast</h2>
+                    <h2 id="forecast-title">7-Day Forecast</h2>
                     <div class="forecast-list" id="forecast-list">
                         <!-- Forecast items will be injected here -->
                     </div>
@@ -1103,21 +1167,86 @@
             lat: null,
             lon: null,
             city: 'Loading...',
+            city: 'Loading...',
             unit: 'celsius', // 'celsius' or 'fahrenheit'
+            lang: localStorage.getItem('weather-lang') || (navigator.language.startsWith('es') ? 'es' : 'en'),
             data: null,
             hasInteracted: false // Track if user has initiated a search track
-        }
+        };
 
-            ;
+        const TRANSLATIONS = {
+            en: {
+                searchPlaceholder: 'Search for a city...',
+                slogan: 'Weather, anywhere.',
+                loading: 'Fetching forecast...',
+                errorGeneric: 'Unable to load weather data.',
+                errorNetwork: 'Network error. Please try again.',
+                errorCity: (city) => `City "${city}" not found.`,
+                retry: 'Try Again',
+                feelsLike: 'Feels Like',
+                humidity: 'Humidity',
+                wind: 'Wind',
+                rainChance: 'Rain Chance',
+                moonPhase: 'Moon Phase',
+                sun: 'Sun',
+                forecastTitle: '7-Day Forecast',
+                dateFormat: 'en-US',
+                wmo: {
+                    0: 'Clear sky', 1: 'Mainly clear', 2: 'Partly cloudy', 3: 'Overcast',
+                    45: 'Fog', 48: 'Depositing rime fog',
+                    51: 'Light drizzle', 53: 'Moderate drizzle', 55: 'Dense drizzle',
+                    61: 'Slight rain', 63: 'Moderate rain', 65: 'Heavy rain',
+                    71: 'Slight snow', 73: 'Moderate snow', 75: 'Heavy snow', 77: 'Snow grains',
+                    80: 'Slight rain showers', 81: 'Moderate rain showers', 82: 'Violent rain showers',
+                    85: 'Slight snow showers', 86: 'Heavy snow showers',
+                    95: 'Thunderstorm', 96: 'Thunderstorm with hail', 99: 'Thunderstorm with heavy hail',
+                    unknown: 'Unknown'
+                },
+                moonPhases: ['New Moon', 'Waxing Crescent', 'First Quarter', 'Waxing Gibbous', 'Full Moon', 'Waning Gibbous', 'Last Quarter', 'Waning Crescent']
+            },
+            es: {
+                searchPlaceholder: 'Buscar ciudad...',
+                slogan: 'El clima, donde sea.',
+                loading: 'Obteniendo pronóstico...',
+                errorGeneric: 'No se pudieron cargar los datos.',
+                errorNetwork: 'Error de red. Intenta de nuevo.',
+                errorCity: (city) => `Ciudad "${city}" no encontrada.`,
+                retry: 'Intentar de nuevo',
+                feelsLike: 'Sensación',
+                humidity: 'Humedad',
+                wind: 'Viento',
+                rainChance: 'Probabilidad Lluvia',
+                moonPhase: 'Fase Lunar',
+                sun: 'Sol',
+                forecastTitle: 'Pronóstico 7 Días',
+                dateFormat: 'es-ES',
+                wmo: {
+                    0: 'Cielo despejado', 1: 'Mayormente despejado', 2: 'Parcialmente nublado', 3: 'Nublado',
+                    45: 'Niebla', 48: 'Niebla con escarcha',
+                    51: 'Llovizna ligera', 53: 'Llovizna moderada', 55: 'Llovizna densa',
+                    61: 'Lluvia ligera', 63: 'Lluvia moderada', 65: 'Lluvia fuerte',
+                    71: 'Nieve ligera', 73: 'Nieve moderada', 75: 'Nieve fuerte', 77: 'Granos de nieve',
+                    80: 'Chubascos ligeros', 81: 'Chubascos moderados', 82: 'Chubascos violentos',
+                    85: 'Chubascos de nieve ligeros', 86: 'Chubascos de nieve fuertes',
+                    95: 'Tormenta eléctrica', 96: 'Tormenta con granizo', 99: 'Tormenta con granizo fuerte',
+                    unknown: 'Desconocido'
+                },
+                moonPhases: ['Luna Nueva', 'Luna Creciente', 'Cuarto Creciente', 'Gibosa Creciente', 'Luna Llena', 'Gibosa Menguante', 'Cuarto Menguante', 'Luna Menguante']
+            }
+        };
+
+        ;
 
         // DOM Elements
         const elements = {
             citySearch: document.getElementById('city-search'),
             locationBtn: document.getElementById('location-btn'),
+            langToggle: document.getElementById('lang-toggle'),
             mainContent: document.getElementById('main-content'),
             loadingScreen: document.getElementById('loading-screen'),
             errorScreen: document.getElementById('error-screen'),
             errorMessage: document.getElementById('error-message'),
+            retryBtn: document.getElementById('retry-btn'),
             retryBtn: document.getElementById('retry-btn'),
             unitToggle: document.getElementById('unit-toggle'),
 
@@ -1141,127 +1270,31 @@
 
         // Constants
         const WMO_CODES = {
-            0: {
-                desc: 'Clear sky', icon: 'sunny'
-            }
-
-            ,
-            1: {
-                desc: 'Mainly clear', icon: 'partly_cloudy_day'
-            }
-
-            ,
-            2: {
-                desc: 'Partly cloudy', icon: 'partly_cloudy_day'
-            }
-
-            ,
-            3: {
-                desc: 'Overcast', icon: 'cloud'
-            }
-
-            ,
-            45: {
-                desc: 'Fog', icon: 'foggy'
-            }
-
-            ,
-            48: {
-                desc: 'Depositing rime fog', icon: 'foggy'
-            }
-
-            ,
-            51: {
-                desc: 'Light drizzle', icon: 'rainy_light'
-            }
-
-            ,
-            53: {
-                desc: 'Moderate drizzle', icon: 'rainy'
-            }
-
-            ,
-            55: {
-                desc: 'Dense drizzle', icon: 'rainy_heavy'
-            }
-
-            ,
-            61: {
-                desc: 'Slight rain', icon: 'rainy_light'
-            }
-
-            ,
-            63: {
-                desc: 'Moderate rain', icon: 'rainy'
-            }
-
-            ,
-            65: {
-                desc: 'Heavy rain', icon: 'rainy_heavy'
-            }
-
-            ,
-            71: {
-                desc: 'Slight snow', icon: 'weather_snowy'
-            }
-
-            ,
-            73: {
-                desc: 'Moderate snow', icon: 'weather_snowy'
-            }
-
-            ,
-            75: {
-                desc: 'Heavy snow', icon: 'weather_snowy'
-            }
-
-            ,
-            77: {
-                desc: 'Snow grains', icon: 'weather_snowy'
-            }
-
-            ,
-            80: {
-                desc: 'Slight rain showers', icon: 'rainy_light'
-            }
-
-            ,
-            81: {
-                desc: 'Moderate rain showers', icon: 'rainy'
-            }
-
-            ,
-            82: {
-                desc: 'Violent rain showers', icon: 'rainy_heavy'
-            }
-
-            ,
-            85: {
-                desc: 'Slight snow showers', icon: 'weather_snowy'
-            }
-
-            ,
-            86: {
-                desc: 'Heavy snow showers', icon: 'weather_snowy'
-            }
-
-            ,
-            95: {
-                desc: 'Thunderstorm', icon: 'thunderstorm'
-            }
-
-            ,
-            96: {
-                desc: 'Thunderstorm with hail', icon: 'thunderstorm'
-            }
-
-            ,
-            99: {
-                desc: 'Thunderstorm with heavy hail', icon: 'thunderstorm'
-            }
-        }
-
-            ;
+            0: { icon: 'sunny' },
+            1: { icon: 'partly_cloudy_day' },
+            2: { icon: 'partly_cloudy_day' },
+            3: { icon: 'cloud' },
+            45: { icon: 'foggy' },
+            48: { icon: 'foggy' },
+            51: { icon: 'rainy_light' },
+            53: { icon: 'rainy' },
+            55: { icon: 'rainy_heavy' },
+            61: { icon: 'rainy_light' },
+            63: { icon: 'rainy' },
+            65: { icon: 'rainy_heavy' },
+            71: { icon: 'weather_snowy' },
+            73: { icon: 'weather_snowy' },
+            75: { icon: 'weather_snowy' },
+            77: { icon: 'weather_snowy' },
+            80: { icon: 'rainy_light' },
+            81: { icon: 'rainy' },
+            82: { icon: 'rainy_heavy' },
+            85: { icon: 'weather_snowy' },
+            86: { icon: 'weather_snowy' },
+            95: { icon: 'thunderstorm' },
+            96: { icon: 'thunderstorm' },
+            99: { icon: 'thunderstorm' }
+        };
 
         // Initialization
         function init() {
@@ -1288,8 +1321,39 @@
 
             elements.unitToggle.addEventListener('click', toggleUnit);
 
+            if (elements.langToggle) {
+                elements.langToggle.addEventListener('click', toggleLanguage);
+                elements.langToggle.textContent = appState.lang.toUpperCase();
+            }
+
+            // Initial static text update
+            const t = TRANSLATIONS[appState.lang];
+            document.getElementById('city-search').placeholder = t.searchPlaceholder;
+
+            // Need to update DOM elements to have IDs for labels first, or use a robust selector
+            // For now, let's call updateStaticLabels which currently does nothing effectively until we fix HTML
+            // But we can manually update the known elements here
+            document.querySelector('.logo-slogan').textContent = t.slogan;
+            document.querySelector('#loading-screen p').textContent = t.loading;
+            document.getElementById('error-message').textContent = t.errorGeneric;
+            document.getElementById('retry-btn').textContent = t.retry;
+
             // Initialize Backgrounds (Stars/Rain)
             initWeatherEffects();
+
+            // Scroll Detector for Header
+            const app = document.querySelector('.app');
+            const header = document.querySelector('.weather-header');
+
+            if (app && header) {
+                app.addEventListener('scroll', () => {
+                    if (app.scrollTop > 10) {
+                        header.classList.add('scrolled');
+                    } else {
+                        header.classList.remove('scrolled');
+                    }
+                });
+            }
         }
 
         function exitSplashMode() {
@@ -1405,7 +1469,7 @@
         async function fetchWeatherData(lat, lon, isCurrentLocation = false) {
             try {
                 const response = await
-                    fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto`);
+                    fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset&timezone=auto`);
 
                 const data = await response.json();
                 appState.data = data;
@@ -1431,12 +1495,16 @@
             const current = data.current;
             const daily = data.daily;
             const isMetric = appState.unit === 'celsius';
+            const t = TRANSLATIONS[appState.lang];
+
+            // Update Static Text
+            updateStaticLabels();
 
             // Header
             elements.cityName.textContent = appState.city;
             const now = new Date();
 
-            elements.currentDate.textContent = now.toLocaleDateString('en-US', {
+            elements.currentDate.textContent = now.toLocaleDateString(t.dateFormat, {
                 weekday: 'long', month: 'long', day: 'numeric'
             });
 
@@ -1460,12 +1528,14 @@
             }
 
             const weatherCode = current.weather_code;
+            // Removed redundant 'const t =' as it is already defined in scope of updateUI if we were inside it,
+            // but the previous edit had a messed up function body. 
+            // In this fixed version, we are inside updateUI, so 't' is available.
 
-            const weatherInfo = WMO_CODES[weatherCode] || {
-                desc: 'Unknown', icon: 'help'
-            };
+            const weatherInfo = WMO_CODES[weatherCode] || { icon: 'help' };
+            const desc = t.wmo[weatherCode] || t.wmo.unknown;
 
-            elements.weatherDesc.textContent = weatherInfo.desc;
+            elements.weatherDesc.textContent = desc;
             elements.currentIcon.innerHTML = `<span class="material-symbols-rounded">${weatherInfo.icon}</span>`;
 
             // Fix for "partly_cloudy_day" text issue: Ensure font loads or fallback is clean (handled by CSS)
@@ -1481,6 +1551,91 @@
 
             // Update Background
             updateBackground(current.weather_code, current.is_day);
+
+            // Moon Phase
+            const moonPhaseIndex = getMoonPhase(new Date());
+            const moonEl = document.getElementById('moon-phase');
+            if (moonEl) moonEl.textContent = t.moonPhases[moonPhaseIndex];
+
+            // Sunrise / Sunset
+            const sunCard = document.getElementById('sun-card');
+            const sunText = document.getElementById('sun-times');
+
+            if (daily.sunrise && daily.sunset && daily.sunrise[0] && daily.sunset[0]) {
+                const rise = new Date(daily.sunrise[0]);
+                const set = new Date(daily.sunset[0]);
+                const fmtOptions = { hour: 'numeric', minute: '2-digit' };
+                sunText.innerHTML = `<span style="font-size: 0.9em">↑ ${rise.toLocaleTimeString([], fmtOptions)}</span><br><span style="font-size: 0.9em">↓ ${set.toLocaleTimeString([], fmtOptions)}</span>`;
+                sunCard.classList.remove('hidden');
+            } else {
+                sunCard.classList.add('hidden');
+            }
+        }
+
+        function getMoonPhase(date) {
+            // ... algorithm same ... 
+            // Return index instead of string to use with translation
+            let year = date.getFullYear();
+            let month = date.getMonth() + 1;
+            let day = date.getDate();
+
+            if (month < 3) {
+                year--;
+                month += 12;
+            }
+
+            ++month;
+            let c = 365.25 * year;
+            let e = 30.6 * month;
+            let jd = c + e + day - 694039.09;
+            jd /= 29.5305882;
+            let b = parseInt(jd);
+            jd -= b;
+            b = Math.round(jd * 8);
+
+            if (b >= 8) b = 0;
+            return b; // 0-7
+        }
+
+        function updateStaticLabels() {
+            const t = TRANSLATIONS[appState.lang];
+            const labels = {
+                'feels-like-label': t.feelsLike,
+                'humidity-label': t.humidity,
+                'wind-label': t.wind,
+                'rain-chance-label': t.rainChance,
+                'moon-phase-label': t.moonPhase,
+                'sun-label': t.sun,
+                'forecast-title': t.forecastTitle
+            };
+
+            for (const [id, text] of Object.entries(labels)) {
+                const el = document.getElementById(id);
+                if (el) el.textContent = text;
+            }
+
+            // Search Placeholder
+            const searchInput = document.getElementById('city-search');
+            if (searchInput) searchInput.placeholder = t.searchPlaceholder;
+        }
+
+        function toggleLanguage() {
+            appState.lang = appState.lang === 'en' ? 'es' : 'en';
+            localStorage.setItem('weather-lang', appState.lang);
+            document.getElementById('lang-toggle').textContent = appState.lang.toUpperCase();
+            updateStaticLabels(); // Update immediate text
+
+            if (appState.data) {
+                updateUI(appState.data); // Update data-dependent text
+            } else {
+                // Ensure static text is updated even without data
+                const t = TRANSLATIONS[appState.lang];
+                document.getElementById('city-search').placeholder = t.searchPlaceholder;
+                document.querySelector('.logo-slogan').textContent = t.slogan;
+                document.querySelector('#loading-screen p').textContent = t.loading;
+                document.getElementById('error-message').textContent = t.errorGeneric;
+                document.getElementById('retry-btn').textContent = t.retry;
+            }
         }
 
         function updateBackground(code, isDay) {
@@ -1527,11 +1682,12 @@
 
         function renderForecast(daily, isMetric) {
             elements.forecastList.innerHTML = '';
+            const t = TRANSLATIONS[appState.lang];
 
             // Skip today (index 0) and show next 7 days (1-7) assuming API returns enough
             for (let i = 1; i < daily.time.length; i++) {
                 const date = new Date(daily.time[i]); const
-                    dayName = date.toLocaleDateString('en-US', { weekday: 'short' }); const code = daily.weather_code[i]; const
+                    dayName = date.toLocaleDateString(t.dateFormat, { weekday: 'short' }); const code = daily.weather_code[i]; const
                         info = WMO_CODES[code] || { icon: 'help' }; const max = Math.round(convertTemp(daily.temperature_2m_max[i],
                             isMetric)); const min = Math.round(convertTemp(daily.temperature_2m_min[i], isMetric)); const
                                 item = document.createElement('div'); item.className = 'forecast-item'; item.innerHTML = ` <span
