@@ -1486,7 +1486,8 @@
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.3);
-            color: white;
+            color: var(--text-primary);
+            /* Darker text for visibility */
             font-family: var(--font-main);
             font-size: 0.9rem;
             font-weight: 500;
@@ -1605,6 +1606,45 @@
             cursor: pointer;
             transition: all 0.3s ease;
             box-shadow: 0 4px 10px rgba(0, 86, 179, 0.3);
+        }
+
+        /* What's New Button */
+        /* What's New Button */
+        .whats-new-btn {
+            position: fixed;
+            top: 20px;
+            /* Align with feedback btn */
+            right: 170px;
+            z-index: 1000;
+            /* Match feedback btn z-index */
+            background: rgba(255, 255, 255, 0.15);
+            /* Match feedback bg */
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: var(--text-primary);
+            /* Match feedback text color */
+            padding: 8px 16px;
+            border-radius: 50px;
+            /* Match pill shape */
+            cursor: pointer;
+            font-size: 0.9rem;
+            /* Match size */
+            font-family: var(--font-main);
+            font-weight: 500;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            /* Match gap */
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            /* Match shadow */
+        }
+
+        .whats-new-btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: translateY(-2px);
         }
 
         .submit-btn:hover {
@@ -1736,6 +1776,25 @@
         <div class="cloud cloud-3"></div>
     </div>
 
+    <!-- What's New Button -->
+    <button id="whats-new-btn" class="whats-new-btn">
+        <span class="material-symbols-rounded" style="font-size: 16px;">campaign</span>
+        What's new
+    </button>
+
+    <!-- What's New Modal -->
+    <div id="whats-new-modal" class="modal">
+        <div class="modal-content">
+            <span id="close-whats-new" class="close-modal">&times;</span>
+            <h2 class="nimbus-text" style="margin-bottom: 20px;">What's New</h2>
+            <ul style="text-align: left; padding-left: 20px; color: var(--text-secondary); line-height: 1.6;">
+                <li>Added hourly forecast for today's weather</li>
+                <li>Added local time for selected cities</li>
+                <li>Added Salisbury, Canada (NB) to quick access cities (based on user feedback)</li>
+            </ul>
+        </div>
+    </div>
+
     <!-- Feedback Button -->
     <button id="feedback-btn" class="feedback-btn">
         <span class="material-symbols-rounded">chat_bubble_outline</span>
@@ -1772,10 +1831,7 @@
                     <img src="./full-nimbus-logo.png" alt="Nimbus" class="unified-logo">
                     <!-- Quick Access Section -->
                     <div class="quick-access-container">
-                        <button class="quick-chip location-chip" id="quick-location-btn">
-                            <span class="material-symbols-rounded" style="font-size: 18px;">my_location</span>
-                            Current Location
-                        </button>
+
                         <div class="city-chips">
                             <button class="quick-chip city-chip" data-lat="19.4326" data-lon="-99.1332">Mexico
                                 City</button>
@@ -2092,6 +2148,27 @@
             if (shell) shell.classList.add('splash-mode');
 
             // Event Listeners
+            // Event Listeners for What's New Modal
+            const whatsNewBtn = document.getElementById('whats-new-btn');
+            const whatsNewModal = document.getElementById('whats-new-modal');
+            const closeWhatsNew = document.getElementById('close-whats-new');
+
+            if (whatsNewBtn && whatsNewModal && closeWhatsNew) {
+                whatsNewBtn.addEventListener('click', () => {
+                    whatsNewModal.classList.add('active');
+                });
+
+                closeWhatsNew.addEventListener('click', () => {
+                    whatsNewModal.classList.remove('active');
+                });
+
+                whatsNewModal.addEventListener('click', (e) => {
+                    if (e.target === whatsNewModal) {
+                        whatsNewModal.classList.remove('active');
+                    }
+                });
+            }
+
             elements.citySearch.addEventListener('input', handleInput);
 
             // UX: Clear text on click for easy new search
@@ -2139,8 +2216,7 @@
             initWeatherEffects();
 
             // Quick Access Listeners
-            const quickLocBtn = document.getElementById('quick-location-btn');
-            if (quickLocBtn) quickLocBtn.addEventListener('click', getUserLocation);
+            // Quick Access Listeners
 
             document.querySelectorAll('.city-chip').forEach(chip => {
                 chip.addEventListener('click', (e) => {
