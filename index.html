@@ -1998,7 +1998,8 @@
             map: null,
             marker: null,
             hasInteracted: false, // Track if user has initiated a search track
-            timeInterval: null // Timer for local clock
+            timeInterval: null, // Timer for local clock
+            lastViewedCity: null // Track last viewed city to prevent duplicate events
         };
 
         const TRANSLATIONS = {
@@ -2091,7 +2092,6 @@
             loadingScreen: document.getElementById('loading-screen'),
             errorScreen: document.getElementById('error-screen'),
             errorMessage: document.getElementById('error-message'),
-            retryBtn: document.getElementById('retry-btn'),
             retryBtn: document.getElementById('retry-btn'),
             unitToggle: document.getElementById('unit-toggle'),
 
@@ -2530,10 +2530,15 @@
             // Header
             elements.cityName.textContent = appState.city;
 
-            if (typeof gtag === 'function') {
+            if (
+                typeof gtag === 'function' &&
+                appState.city &&
+                appState.lastViewedCity !== appState.city
+            ) {
                 gtag('event', 'view_weather', {
                     city: appState.city
                 });
+                appState.lastViewedCity = appState.city;
             }
 
             // Start Local Clock
