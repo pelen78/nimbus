@@ -2370,6 +2370,12 @@
         function handleInput(e) {
             const query = e.target.value.trim();
 
+            if (typeof gtag === 'function') {
+                gtag('event', 'search_city', {
+                    query_length: query.length
+                });
+            }
+
             // Clear current debounce
             clearTimeout(debounceTimer);
 
@@ -2454,6 +2460,12 @@
             appState.lon = city.longitude;
             appState.city = `${city.name}, ${city.country_code}`;
 
+            if (typeof gtag === 'function') {
+                gtag('event', 'city_change', {
+                    city: appState.city
+                });
+            }
+
             // Update input
             elements.citySearch.value = city.name;
 
@@ -2517,6 +2529,12 @@
 
             // Header
             elements.cityName.textContent = appState.city;
+
+            if (typeof gtag === 'function') {
+                gtag('event', 'view_weather', {
+                    city: appState.city
+                });
+            }
 
             // Start Local Clock
             if (appState.timeInterval) clearInterval(appState.timeInterval);
