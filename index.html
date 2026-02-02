@@ -1120,6 +1120,13 @@
             /* Behind content but above body bg */
             pointer-events: none;
             overflow: hidden;
+            transition: background 1.5s ease;
+            /* Smooth transition for dark mode */
+        }
+
+        body.weather-night .weather-effects-container {
+            background: rgba(10, 15, 30, 0.6);
+            /* Darkening overlay for night */
         }
 
         /* State Classes on Body */
@@ -1642,14 +1649,33 @@
         }
 
         .toggle-icon {
+            display: inline-block;
+            /* Ensure transform works */
             font-size: 20px;
             color: var(--text-secondary);
-            transition: transform 0.3s ease;
-            margin-left: 8px;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            margin-left: 6px;
+            /* Space between text and arrow */
+            animation: hintBounce 2s ease-in-out 1s 3;
+            /* Bounce 3 times after 1s delay */
         }
 
         .forecast-item.expanded .toggle-icon {
             transform: rotate(180deg);
+            animation: none;
+            /* Stop animation when expanded */
+        }
+
+        @keyframes hintBounce {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(4px);
+            }
         }
     </style>
 </head>
@@ -1879,13 +1905,13 @@
             lat: null,
             lon: null,
             city: 'Loading...',
-            city: 'Loading...',
             unit: 'celsius', // 'celsius' or 'fahrenheit'
             lang: localStorage.getItem('weather-lang') || (navigator.language.startsWith('es') ? 'es' : 'en'),
             data: null,
             map: null,
             marker: null,
-            hasInteracted: false // Track if user has initiated a search track
+            hasInteracted: false, // Track if user has initiated a search track
+            timeInterval: null // Timer for local clock
         };
 
         const TRANSLATIONS = {
@@ -2036,6 +2062,11 @@
 
             // Event Listeners
             elements.citySearch.addEventListener('input', handleInput);
+
+            // UX: Clear text on click for easy new search
+            elements.citySearch.addEventListener('click', () => {
+                elements.citySearch.value = '';
+            });
 
             // Close suggestions on click outside
             document.addEventListener('click', (e) => {
@@ -2378,11 +2409,13 @@
 
             // Header
             elements.cityName.textContent = appState.city;
-            const now = new Date();
 
-            elements.currentDate.textContent = now.toLocaleDateString(t.dateFormat, {
-                weekday: 'long', month: 'long', day: 'numeric'
-            });
+            // Start Local Clock
+            if (appState.timeInterval) clearInterval(appState.timeInterval);
+            updateLocalTime(); // Initial Update
+            appState.timeInterval = setInterval(updateLocalTime, 10000); // Update every 10s to stay accurate
+
+            /* Previous static date code removed */
 
             // Current Weather
             elements.currentTemp.textContent = Math.round(convertTemp(current.temperature_2m, isMetric));
@@ -2723,8 +2756,8 @@
 
                 item.innerHTML = `
                 <div style="display:flex; align-items:center; width:100%; justify-content:space-between;">
-                    <div style="display:flex; align-items:center; gap: 10px;">
-                        <span class="forecast-day">${dayLabel}</span>
+                    <div style="display:flex; align-items:center; flex: 1;">
+                        <span class="forecast-day" style="flex: initial;">${dayLabel}</span>
                         ${isToday ? '<span class="material-symbols-rounded toggle-icon">expand_more</span>' : ''}
                     </div>
                     <span class="forecast-icon material-symbols-rounded">${info.icon}</span>
@@ -2827,6 +2860,28 @@
             elements.loadingScreen.classList.remove('hidden');
             elements.mainContent.classList.add('hidden');
             elements.errorScreen.classList.add('hidden');
+        }
+
+        function updateLocalTime() {
+            if (!appState.data || !appState.data.timezone) return;
+
+            const timezone = appState.data.timezone;
+            const t = TRANSLATIONS[appState.lang];
+            const now = new Date();
+
+            // Date: "Sunday, February 1"
+            const dateOptions = { weekday: 'long', month: 'long', day: 'numeric', timeZone: timezone };
+            const dateStr = now.toLocaleDateString(t.dateFormat, dateOptions);
+
+            // Time: "8:14 PM"
+            const timeOptions = { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: timezone };
+            const timeStr = now.toLocaleTimeString(t.dateFormat, timeOptions);
+
+            // Combine: Date · Time
+            // Using dot separator with low opacity for time
+            if (elements.currentDate) {
+                elements.currentDate.innerHTML = `${dateStr} <span style="margin: 0 12px; opacity: 0.5;">&middot;</span> <span style="opacity: 0.8; font-weight: 400;">${timeStr}</span>`;
+            }
         }
 
         function showContent() {
