@@ -1573,6 +1573,84 @@
             transform: translateY(-2px);
             box-shadow: 0 6px 15px rgba(0, 86, 179, 0.4);
         }
+
+        /* Hourly Forecast Styles */
+        .hourly-container {
+            width: 100%;
+            overflow: hidden;
+            max-height: 0;
+            transition: max-height 0.4s ease-in-out, opacity 0.4s ease-in-out, margin-top 0.4s ease;
+            opacity: 0;
+            margin-top: 0;
+        }
+
+        .hourly-container.active {
+            max-height: 150px;
+            /* Adjust based on content */
+            opacity: 1;
+            margin-top: 10px;
+        }
+
+        .hourly-scroll {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            padding: 5px 0 15px;
+            /* Bottom padding for scrollbar space if any */
+            scroll-behavior: smooth;
+        }
+
+        .hourly-scroll::-webkit-scrollbar {
+            height: 4px;
+        }
+
+        .hourly-scroll::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 4px;
+        }
+
+        .hourly-card {
+            min-width: 70px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            padding: 10px 5px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+        }
+
+        .hourly-time {
+            font-size: 0.8rem;
+            margin-bottom: 5px;
+            color: var(--text-secondary);
+        }
+
+        .hourly-temp {
+            font-size: 0.95rem;
+            font-weight: 600;
+            margin-top: 5px;
+        }
+
+        .forecast-item.clickable {
+            cursor: pointer;
+            position: relative;
+            /* For positioning context if needed */
+        }
+
+        .toggle-icon {
+            font-size: 20px;
+            color: var(--text-secondary);
+            transition: transform 0.3s ease;
+            margin-left: 8px;
+        }
+
+        .forecast-item.expanded .toggle-icon {
+            transform: rotate(180deg);
+        }
     </style>
 </head>
 
@@ -2259,7 +2337,7 @@
                 // Added daily=uv_index_max and current=visibility,uv_index
                 // Added pollen to air-quality
                 const [weatherRes, airRes] = await Promise.all([
-                    fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,wind_speed_10m,visibility,uv_index&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset,uv_index_max&timezone=auto`),
+                    fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,wind_speed_10m,visibility,uv_index&hourly=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset,uv_index_max&timezone=auto`),
                     fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&current=european_aqi,pm10,pm2_5,carbon_monoxide,nitrogen_dioxide,sulphur_dioxide,ozone,alder_pollen,birch_pollen,grass_pollen,mugwort_pollen,olive_pollen,ragweed_pollen`)
                 ]);
 
@@ -2612,21 +2690,131 @@
             elements.forecastList.innerHTML = '';
             const t = TRANSLATIONS[appState.lang];
 
-            // Skip today (index 0) and show next 7 days (1-7) assuming API returns enough
-            for (let i = 1; i < daily.time.length; i++) {
-                const date = new Date(daily.time[i]); const
-                    dayName = date.toLocaleDateString(t.dateFormat, { weekday: 'short' }); const code = daily.weather_code[i]; const
-                        info = WMO_CODES[code] || { icon: 'help' }; const max = Math.round(convertTemp(daily.temperature_2m_max[i],
-                            isMetric)); const min = Math.round(convertTemp(daily.temperature_2m_min[i], isMetric)); const
-                                item = document.createElement('div'); item.className = 'forecast-item'; item.innerHTML = ` <span
-            class="forecast-day">${dayName}</span>
-            <span class="forecast-icon material-symbols-rounded">${info.icon}</span>
-            <div class="forecast-temps">
-                <span class="max-temp">${max}°</span>
-                <span class="min-temp">${min}°</span>
-            </div>
-            `;
+            // Show Today (0) through next 6 days (total 7 items)
+            // Limit to 7 days if API returns more
+            const daysToShow = Math.min(daily.time.length, 7);
+
+            for (let i = 0; i < daysToShow; i++) {
+                // Fix: Parse YYYY-MM-DD as local time to avoid timezone shifts
+                const [y, m, d] = daily.time[i].split('-').map(Number);
+                const date = new Date(y, m - 1, d);
+
+                const isToday = i === 0;
+
+                // For Today, use specific label, otherwise day name
+                // Note: t.today doesn't exist yet, we can default "Today" or use date
+                // Ideally add "Today" to translations, but for now hardcode or use simple logic
+                // User requirement: "Today" in the list.
+                let dayLabel = date.toLocaleDateString(t.dateFormat, { weekday: 'short' });
+                if (isToday) dayLabel = appState.lang === 'es' ? 'Hoy' : 'Today';
+
+                const code = daily.weather_code[i];
+                const info = WMO_CODES[code] || { icon: 'help' };
+                const max = Math.round(convertTemp(daily.temperature_2m_max[i], isMetric));
+                const min = Math.round(convertTemp(daily.temperature_2m_min[i], isMetric));
+
+                const item = document.createElement('div');
+                item.className = 'forecast-item';
+                if (isToday) {
+                    item.classList.add('clickable');
+                    item.setAttribute('role', 'button');
+                    item.onclick = toggleHourly;
+                }
+
+                item.innerHTML = `
+                <div style="display:flex; align-items:center; width:100%; justify-content:space-between;">
+                    <div style="display:flex; align-items:center; gap: 10px;">
+                        <span class="forecast-day">${dayLabel}</span>
+                        ${isToday ? '<span class="material-symbols-rounded toggle-icon">expand_more</span>' : ''}
+                    </div>
+                    <span class="forecast-icon material-symbols-rounded">${info.icon}</span>
+                    <div class="forecast-temps">
+                        <span class="max-temp">${max}°</span>
+                        <span class="min-temp">${min}°</span>
+                    </div>
+                </div>
+                `;
+
+                // If Today, append the hourly container (hidden by default)
+                if (isToday) {
+                    const hourlyContainer = document.createElement('div');
+                    hourlyContainer.id = 'hourly-container';
+                    hourlyContainer.className = 'hourly-container';
+                    hourlyContainer.innerHTML = '<div class="hourly-scroll" id="hourly-scroll"></div>';
+                    // We append it differently so it sits *below* the flex row
+                    // Easier to change item to flex-column
+                    item.style.flexDirection = 'column';
+                    item.style.alignItems = 'normal'; // Reset align
+                    item.appendChild(hourlyContainer);
+                }
+
                 elements.forecastList.appendChild(item);
+            }
+        }
+
+        function toggleHourly(e) {
+            // Prevent toggling if clicking inside the scroll area (so user can scroll without closing)
+            if (e.target.closest('.hourly-scroll')) return;
+
+            const container = document.getElementById('hourly-container');
+            const item = e.currentTarget;
+            const isActive = container.classList.contains('active');
+
+            if (isActive) {
+                container.classList.remove('active');
+                item.classList.remove('expanded');
+            } else {
+                // Render data if empty or always re-render?
+                // Re-render ensures freshness and correct unit
+                renderHourlyData();
+                container.classList.add('active');
+                item.classList.add('expanded');
+            }
+        }
+
+        function renderHourlyData() {
+            if (!appState.data || !appState.data.hourly) return;
+
+            const hourly = appState.data.hourly;
+            const scroll = document.getElementById('hourly-scroll');
+            if (!scroll) return;
+            scroll.innerHTML = ''; // Clear
+
+            const now = new Date();
+            const currentHour = now.getHours();
+            const isMetric = appState.unit === 'celsius';
+
+            // Filter next 24 hours or just "rest of today"?
+            // "Hourly weather view... when user taps Today" usually implies "Rest of Today" + maybe tomorrow morning
+            // Let's show next 24 hours from current time
+
+            let count = 0;
+            for (let i = 0; i < hourly.time.length; i++) {
+                if (count >= 24) break;
+
+                const timeStr = hourly.time[i];
+                const date = new Date(timeStr);
+
+                // Skip past hours
+                if (date < now && date.getHours() !== currentHour) continue;
+
+                count++;
+
+                const hour = date.getHours();
+                const displayHour = hour === 0 ? '12 AM' : (hour > 12 ? `${hour - 12} PM` : (hour === 12 ? '12 PM' : `${hour} AM`));
+
+                const code = hourly.weather_code[i];
+                const info = WMO_CODES[code] || { icon: 'help' };
+                const temp = Math.round(convertTemp(hourly.temperature_2m[i], isMetric));
+
+                const card = document.createElement('div');
+                card.className = 'hourly-card';
+                card.innerHTML = `
+                    <span class="hourly-time">${i === 0 && count === 1 ? 'Now' : displayHour}</span>
+                    <span class="material-symbols-rounded" style="font-size:20px; margin: 2px 0;">${info.icon}</span>
+                    <span class="hourly-temp">${temp}°</span>
+                `;
+                scroll.appendChild(card);
             }
         }
 
@@ -2695,27 +2883,76 @@
 
             submitFeedback.addEventListener('click', () => {
                 const text = feedbackText.value.trim();
-                if (text) {
-                    // Simulate sending
-                    const originalText = submitFeedback.textContent;
-                    submitFeedback.textContent = "Sent!";
-                    submitFeedback.style.background = "#22c55e"; // Success green
 
-                    setTimeout(() => {
-                        hideModal();
-                        feedbackText.value = ''; // Clear
-                        // Reset button
-                        setTimeout(() => {
-                            submitFeedback.textContent = originalText;
-                            submitFeedback.style.background = "";
-                        }, 500);
-                    }, 1000);
-                } else {
+                if (!text) {
                     feedbackText.style.borderColor = "#ef4444"; // Error red
                     setTimeout(() => {
                         feedbackText.style.borderColor = "";
                     }, 2000);
+                    return;
                 }
+
+                // Prepare UI for sending
+                const originalText = submitFeedback.textContent;
+                submitFeedback.textContent = "Sending...";
+                submitFeedback.disabled = true;
+
+                // Data payload
+                const payload = {
+                    message: text,
+                    _subject: "Nimbus Weather Feedback",
+                    app_name: "Nimbus Weather",
+                    url: window.location.href,
+                    user_agent: navigator.userAgent
+                };
+
+                fetch("https://formspree.io/f/mrelklpw", {
+                    method: "POST",
+                    body: JSON.stringify(payload),
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    }
+                })
+                    .then(response => {
+                        if (response.ok) {
+                            // Success State
+                            submitFeedback.textContent = "Sent!";
+                            submitFeedback.style.background = "#22c55e"; // Success green
+
+                            setTimeout(() => {
+                                hideModal();
+                                feedbackText.value = ''; // Clear text
+
+                                // Reset button state
+                                setTimeout(() => {
+                                    submitFeedback.textContent = originalText;
+                                    submitFeedback.style.background = "";
+                                    submitFeedback.disabled = false;
+                                }, 500);
+                            }, 1500);
+                        } else {
+                            return response.json().then(data => {
+                                if (Object.hasOwn(data, 'errors')) {
+                                    throw new Error(data.errors.map(error => error.message).join(", "));
+                                } else {
+                                    throw new Error('Formspree submission failed');
+                                }
+                            });
+                        }
+                    })
+                    .catch(error => {
+                        // Error State
+                        console.error('Feedback Error:', error);
+                        submitFeedback.textContent = "Error";
+                        submitFeedback.style.background = "#ef4444"; // Error red
+
+                        setTimeout(() => {
+                            submitFeedback.textContent = originalText;
+                            submitFeedback.style.background = "";
+                            submitFeedback.disabled = false;
+                        }, 3000);
+                    });
             });
         }
     </script>
