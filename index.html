@@ -613,6 +613,38 @@
     }
     .drawer-overlay.open { display: block; }
 
+    /* ── MOBILE SEARCH BAR (below header) ── */
+    .mobile-search-bar {
+      display: none;
+      position: fixed; top: 56px; left: 0; right: 0; z-index: 99;
+      padding: 10px 16px;
+      background: rgba(10,10,11,0.95);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+    }
+    .mobile-search-bar .mobile-search-inner {
+      display: flex; align-items: center; gap: 10px;
+      background: var(--bg3); border: 1px solid var(--border);
+      border-radius: 4px; padding: 10px 14px;
+      position: relative;
+      transition: border-color .2s;
+    }
+    .mobile-search-bar .mobile-search-inner:focus-within {
+      border-color: rgba(139,111,212,.5);
+    }
+    .mobile-search-bar input {
+      flex: 1; background: transparent; border: none; outline: none;
+      font-family: var(--mono); font-size: 14px; color: var(--white);
+    }
+    .mobile-search-bar input::placeholder { color: var(--muted); }
+    .mobile-search-bar .material-symbols-rounded { color: var(--muted); font-size: 16px; }
+    .mobile-search-bar #suggestions-list-bar {
+      position: absolute; top: calc(100% + 8px); left: 0; right: 0;
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: 4px; z-index: 200;
+      max-height: 240px; overflow-y: auto;
+    }
+
     /* ── RESPONSIVE ── */
     @media (max-width: 1000px) {
       .env-grid { grid-template-columns: repeat(2,1fr); }
@@ -620,9 +652,8 @@
       .forecast-grid .forecast-day-card:nth-child(n+5) { display: none; }
     }
     @media (max-width: 768px) {
-      /* Header: only wordmark + cloud + search icon + menu */
       header { padding: 0 20px; height: 56px; }
-      .page { padding-top: 56px; }
+      .page { padding-top: 110px; } /* header + search bar */
       .cloud-anim { display: none; }
       .wordmark { font-size: 15px; letter-spacing: 0.14em; }
       .header-search { display: none; }
@@ -631,8 +662,8 @@
       .unit-toggle { display: none; }
       .mobile-menu-btn { display: flex; }
       .mobile-drawer { display: block; }
+      .mobile-search-bar { display: block; }
 
-      /* Content */
       .splash, #main-content { padding-left: 20px; padding-right: 20px; }
       .search-section, .quick-cities { padding-left: 20px; padding-right: 20px; }
       .weather-card { grid-template-columns: 1fr; }
@@ -713,22 +744,24 @@
 <!-- ── WEATHER CANVAS ── -->
 <canvas id="weather-canvas" style="position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1;opacity:0;transition:opacity 1.5s ease;"></canvas>
 
+<!-- ── MOBILE SEARCH BAR ── -->
+<div class="mobile-search-bar" id="mobile-search-bar">
+  <div class="mobile-search-inner">
+    <span class="material-symbols-rounded">search</span>
+    <input type="text" id="city-search-bar" placeholder="Search any city..." autocomplete="off">
+    <button id="location-btn-bar" style="background:transparent;border:none;color:var(--muted);cursor:pointer;display:flex;align-items:center;transition:color .2s;" onmouseover="this.style.color='var(--teal)'" onmouseout="this.style.color='var(--muted)'">
+      <span class="material-symbols-rounded" style="font-size:16px;">my_location</span>
+    </button>
+    <div id="suggestions-list-bar" class="hidden"></div>
+  </div>
+</div>
+
 <!-- ── MOBILE DRAWER OVERLAY ── -->
 <div class="drawer-overlay" id="drawer-overlay"></div>
 
 <!-- ── MOBILE DRAWER ── -->
 <div class="mobile-drawer" id="mobile-drawer">
   <div class="drawer-handle"></div>
-
-  <!-- Search -->
-  <div class="drawer-search" id="drawer-search-wrap">
-    <span class="material-symbols-rounded">search</span>
-    <input type="text" id="city-search-mobile" placeholder="Search any city..." autocomplete="off">
-    <button style="background:transparent;border:none;color:var(--muted);cursor:pointer;display:flex;align-items:center;" id="location-btn-mobile">
-      <span class="material-symbols-rounded" style="font-size:18px;">my_location</span>
-    </button>
-    <div id="suggestions-list-mobile" class="suggestions-dropdown hidden"></div>
-  </div>
 
   <!-- Quick cities -->
   <div class="drawer-cities" id="drawer-cities">
@@ -1423,47 +1456,53 @@
     document.getElementById('mobile-menu-btn').addEventListener('click', openDrawer);
     document.getElementById('drawer-overlay').addEventListener('click', closeDrawer);
 
-    // Mobile search
-    const mobileInput = document.getElementById('city-search-mobile');
-    let mobileDebounce;
-    mobileInput.addEventListener('input', e => {
-      const q = e.target.value.trim();
-      clearTimeout(mobileDebounce);
-      if(q.length < 2) { document.getElementById('suggestions-list-mobile').classList.add('hidden'); return; }
-      mobileDebounce = setTimeout(async () => {
-        try {
-          const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=10&language=en&format=json`);
-          const d = await res.json();
-          const list = document.getElementById('suggestions-list-mobile');
-          list.innerHTML = '';
-          if(d.results && d.results.length) {
-            list.classList.remove('hidden');
-            d.results.forEach(city => {
-              const item = document.createElement('div');
-              item.className = 'suggestion-item';
-              const flag = getFlagEmoji(city.country_code);
-              const sub = [city.admin1, city.country].filter(Boolean).join(', ');
-              item.innerHTML = `<span class="suggestion-flag">${flag}</span><div class="suggestion-text"><span>${city.name}</span><span class="suggestion-sub">${sub}</span></div>`;
-              item.addEventListener('click', () => {
-                appState.lat = city.latitude; appState.lon = city.longitude;
-                appState.city = `${city.name}, ${city.country_code}`;
-                mobileInput.value = ''; mobileInput.placeholder = city.name;
-                list.classList.add('hidden');
-                closeDrawer();
-                fetchWeatherData(appState.lat, appState.lon);
-              });
-              list.appendChild(item);
-            });
-          } else { list.classList.add('hidden'); }
-        } catch(e) { console.error(e); }
-      }, 300);
-    });
-    mobileInput.addEventListener('keydown', e => {
-      if(e.key==='Enter' && e.target.value.trim()) { searchCity(e.target.value.trim()); closeDrawer(); }
-    });
-
-    // Mobile location
+    // Mobile location btn in drawer
     document.getElementById('location-btn-mobile').addEventListener('click', () => { closeDrawer(); getUserLocation(); });
+
+    // Mobile search bar (always visible on mobile)
+    const barInput = document.getElementById('city-search-bar');
+    const barList  = document.getElementById('suggestions-list-bar');
+    if(barInput) {
+      let barDebounce;
+      barInput.addEventListener('input', e => {
+        const q = e.target.value.trim();
+        clearTimeout(barDebounce);
+        if(q.length < 2) { barList.classList.add('hidden'); return; }
+        barDebounce = setTimeout(async () => {
+          try {
+            const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=10&language=en&format=json`);
+            const d = await res.json();
+            barList.innerHTML = '';
+            if(d.results && d.results.length) {
+              barList.classList.remove('hidden');
+              d.results.forEach(city => {
+                const item = document.createElement('div');
+                item.className = 'suggestion-item';
+                const flag = getFlagEmoji(city.country_code);
+                const sub = [city.admin1, city.country].filter(Boolean).join(', ');
+                item.innerHTML = `<span class="suggestion-flag">${flag}</span><div class="suggestion-text"><span>${city.name}</span><span class="suggestion-sub">${sub}</span></div>`;
+                item.addEventListener('click', () => {
+                  appState.lat = city.latitude; appState.lon = city.longitude;
+                  appState.city = `${city.name}, ${city.country_code}`;
+                  barInput.value = ''; barInput.placeholder = city.name;
+                  barList.classList.add('hidden');
+                  fetchWeatherData(appState.lat, appState.lon);
+                });
+                barList.appendChild(item);
+              });
+            } else { barList.classList.add('hidden'); }
+          } catch(e) { console.error(e); }
+        }, 300);
+      });
+      barInput.addEventListener('keydown', e => {
+        if(e.key==='Enter' && e.target.value.trim()) { searchCity(e.target.value.trim()); barInput.value=''; }
+      });
+      document.addEventListener('click', e => {
+        if(!e.target.closest('.mobile-search-bar')) barList.classList.add('hidden');
+      });
+    }
+    const barLocBtn = document.getElementById('location-btn-bar');
+    if(barLocBtn) barLocBtn.addEventListener('click', getUserLocation);
 
     // Mobile unit toggle
     document.getElementById('unit-toggle-mobile').addEventListener('click', () => {
