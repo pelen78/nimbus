@@ -1075,13 +1075,16 @@
                 const flag = getFlagEmoji(city.country_code);
                 const sub = [city.admin1, city.country].filter(Boolean).join(', ');
                 item.innerHTML = `<span class="suggestion-flag">${flag}</span><div class="suggestion-text"><span>${city.name}</span><span class="suggestion-sub">${sub}</span></div>`;
-                item.addEventListener('click', () => {
+                const selectBarCity = () => {
                   appState.lat = city.latitude; appState.lon = city.longitude;
                   appState.city = `${city.name}, ${city.country_code}`;
                   barInput.value = ''; barInput.placeholder = city.name;
                   barList.classList.add('hidden');
+                  barInput.blur();
                   fetchWeatherData(appState.lat, appState.lon);
-                });
+                };
+                item.addEventListener('click', selectBarCity);
+                item.addEventListener('touchend', e => { e.preventDefault(); selectBarCity(); });
                 barList.appendChild(item);
               });
             } else { barList.classList.add('hidden'); }
