@@ -621,6 +621,7 @@
       background: rgba(10,10,11,0.95);
       backdrop-filter: blur(16px);
       border-bottom: 1px solid var(--border);
+      overflow: visible;
     }
     .mobile-search-bar .mobile-search-inner {
       display: flex; align-items: center; gap: 10px;
@@ -628,6 +629,7 @@
       border-radius: 4px; padding: 10px 14px;
       position: relative;
       transition: border-color .2s;
+      overflow: visible;
     }
     .mobile-search-bar .mobile-search-inner:focus-within {
       border-color: rgba(139,111,212,.5);
@@ -641,8 +643,9 @@
     .mobile-search-bar #suggestions-list-bar {
       position: absolute; top: calc(100% + 8px); left: 0; right: 0;
       background: var(--bg2); border: 1px solid var(--border);
-      border-radius: 4px; z-index: 200;
-      max-height: 240px; overflow-y: auto;
+      border-radius: 4px; z-index: 9999;
+      max-height: 300px; overflow-y: auto;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.8);
     }
 
     /* ── RESPONSIVE ── */
