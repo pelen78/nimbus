@@ -1071,6 +1071,8 @@
     const barList  = document.getElementById('suggestions-list-bar');
     if(barInput && barList) {
       let barDebounce;
+      let barSelecting = false; // flag to block close-on-click
+
       barInput.addEventListener('input', e => {
         const q = e.target.value.trim();
         clearTimeout(barDebounce);
@@ -1088,22 +1090,42 @@
                 const flag = getFlagEmoji(city.country_code);
                 const sub = [city.admin1, city.country].filter(Boolean).join(', ');
                 item.innerHTML = `<span class="suggestion-flag">${flag}</span><div class="suggestion-text"><span>${city.name}</span><span class="suggestion-sub">${sub}</span></div>`;
-                const selectBarCity = () => {
+
+                const doSelect = () => {
                   appState.lat = city.latitude; appState.lon = city.longitude;
                   appState.city = `${city.name}, ${city.country_code}`;
-                  barInput.value = ''; barInput.placeholder = city.name;
+                  barInput.value = '';
+                  barInput.placeholder = city.name;
+                  barList.innerHTML = '';
                   barList.classList.add('hidden');
                   barInput.blur();
                   fetchWeatherData(appState.lat, appState.lon);
                 };
-                item.addEventListener('click', selectBarCity);
-                item.addEventListener('touchend', e => { e.preventDefault(); selectBarCity(); });
+
+                // touchstart fires before anything else — fastest on mobile
+                item.addEventListener('touchstart', e => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  barSelecting = true;
+                  doSelect();
+                  setTimeout(() => { barSelecting = false; }, 300);
+                }, { passive: false });
+
+                // fallback for desktop
+                item.addEventListener('mousedown', e => {
+                  e.preventDefault();
+                  barSelecting = true;
+                  doSelect();
+                  setTimeout(() => { barSelecting = false; }, 300);
+                });
+
                 barList.appendChild(item);
               });
             } else { barList.classList.add('hidden'); }
           } catch(err) { console.error(err); }
         }, 300);
       });
+
       barInput.addEventListener('keydown', e => {
         if(e.key==='Enter' && e.target.value.trim()) {
           barList.classList.add('hidden');
@@ -1111,6 +1133,12 @@
           barInput.value = '';
         }
       });
+
+      // Close list when tapping outside — but not when selecting an item
+      document.addEventListener('touchstart', e => {
+        if(barSelecting) return;
+        if(!e.target.closest('#mobile-search-bar')) barList.classList.add('hidden');
+      }, { passive: true });
     }
     const barLocBtn = document.getElementById('location-btn-bar');
     if(barLocBtn) barLocBtn.addEventListener('click', getUserLocation);
