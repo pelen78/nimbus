@@ -581,6 +581,21 @@
     }
     .modal-item:last-child { border-bottom: none; }
     .modal-item::before { content: '→'; color: var(--teal); flex-shrink: 0; margin-top: 1px; }
+    #whatsNewModal { padding:16px; }
+    .news-modal {
+      display:flex; flex-direction:column; padding:0; width:100%; max-width:480px;
+      max-height:min(540px, calc(100vh - 32px)); max-height:min(540px, calc(100dvh - 32px));
+      overflow:hidden; border-radius:10px;
+    }
+    .news-header { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:20px 22px 16px; flex-shrink:0; border-bottom:1px solid var(--border); }
+    .news-header .modal-title { font-size:30px; margin:0; }
+    .news-dismiss { display:grid; place-items:center; width:40px; height:40px; flex-shrink:0; border:1px solid var(--border-h); border-radius:6px; background:var(--bg3); color:var(--white); font-size:18px; cursor:pointer; }
+    .news-body { padding:0 22px; min-height:0; overflow-y:auto; overscroll-behavior:contain; }
+    .news-body .modal-item { font-size:13px; line-height:1.6; padding:13px 0; }
+    .news-footer { flex-shrink:0; padding:16px 22px 20px; border-top:1px solid var(--border); background:var(--bg2); }
+    .news-close { width:100%; min-height:44px; padding:10px 20px; border:0; border-radius:6px; background:var(--teal); color:#071c19; font:700 13px var(--mono); cursor:pointer; }
+    .news-close:hover { background:#67e6d6; }
+    .news-close:focus-visible, .news-dismiss:focus-visible { outline:2px solid var(--white); outline-offset:3px; }
     .feedback-textarea {
       width: 100%; height: 120px; background: var(--bg3);
       border: 1px solid var(--border); border-radius: 4px;
@@ -832,20 +847,20 @@
 
 <!-- ── MODALS ── -->
 <div class="modal-overlay" id="whatsNewModal">
-  <div class="modal">
-    <button class="modal-close" onclick="closeModal('whatsNewModal')">✕</button>
-    <div class="modal-title">What's New · v2.1</div>
-    <div class="modal-item">Weather that matches the sky — sunshine between clouds, distinct day and night scenes, and separate rain, snow and fog effects. Cold weather gets a cool tint without adding snow.</div>
-    <div class="modal-item">Wind in motion — gentle breeze and stronger wind effects follow the reported speed. The wind card now includes direction and gusts when available.</div>
-    <div class="modal-item">Know how fresh your weather is — see the time of the weather data, refresh manually, or let Nimbus check every 15 minutes while the page is open.</div>
-    <div class="modal-item">Clearer readings — “Now” uses current conditions, forecast times follow the selected city, and rain chance is clearly labeled for today. Missing environmental data is shown as unavailable.</div>
-    <div class="modal-item">Tampico en vivo — a new home-page shortcut opens MeteoAlert in another tab, clearly identifying it as their external website.</div>
-    <div class="modal-item" style="border-bottom:none; padding-bottom:0;">
-      Have a suggestion or spotted something to improve? We'd love to hear from you —
-      <button onclick="closeModal('whatsNewModal'); openModal('feedbackModal');"
-        style="background:none;border:none;color:var(--teal);font-family:var(--mono);font-size:14px;cursor:pointer;padding:0;text-decoration:underline;">
-        send us feedback
-      </button>.
+  <div class="modal news-modal" role="dialog" aria-modal="true" aria-labelledby="news-title">
+    <div class="news-header">
+      <div class="modal-title" id="news-title">What's New · v2.1</div>
+      <button class="news-dismiss" aria-label="Close" onclick="closeModal('whatsNewModal')">✕</button>
+    </div>
+    <div class="news-body">
+      <div class="modal-item">Sun between clouds, day and night scenes, and distinct rain, snow and fog effects.</div>
+      <div class="modal-item">Wind effects follow the reported speed, with direction and gusts in the weather card.</div>
+      <div class="modal-item">Data time is visible. Refresh manually or automatically every 15 minutes.</div>
+      <div class="modal-item">Current conditions and city-local forecast times. Rain chance is clearly labeled for today.</div>
+      <div class="modal-item">Tampico en vivo: a home-page shortcut to MeteoAlert's external website.</div>
+    </div>
+    <div class="news-footer">
+      <button class="news-close" onclick="closeModal('whatsNewModal')">Close</button>
     </div>
   </div>
 </div>
@@ -1278,10 +1293,36 @@
   }
 
   // ── MODAL ──
-  function openModal(id) { document.getElementById(id).classList.add('active'); }
-  function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+  const modalOpeners = new Map();
+  function openModal(id) {
+    const modal = document.getElementById(id);
+    modalOpeners.set(id, document.activeElement);
+    if (id === 'whatsNewModal') {
+      const label = appState.lang === 'es' ? 'Cerrar' : 'Close';
+      modal.querySelector('.news-close').textContent = label;
+      modal.querySelector('.news-dismiss').setAttribute('aria-label', label);
+    }
+    modal.classList.add('active');
+    (modal.querySelector('.news-close') || modal.querySelector('button'))?.focus();
+  }
+  function closeModal(id) {
+    document.getElementById(id).classList.remove('active');
+    modalOpeners.get(id)?.focus();
+    modalOpeners.delete(id);
+  }
+  document.addEventListener('keydown', event => {
+    const modal = document.querySelector('.modal-overlay.active');
+    if (!modal) return;
+    if (event.key === 'Escape') { event.preventDefault(); closeModal(modal.id); }
+    if (event.key === 'Tab') {
+      const items = [...modal.querySelectorAll('button:not([disabled]), a[href], textarea, input')].filter(el => el.getClientRects().length);
+      const first = items[0], last = items[items.length - 1];
+      if (event.shiftKey && (document.activeElement === first || !modal.contains(document.activeElement))) { event.preventDefault(); last?.focus(); }
+      else if (!event.shiftKey && (document.activeElement === last || !modal.contains(document.activeElement))) { event.preventDefault(); first?.focus(); }
+    }
+  });
   document.querySelectorAll('.modal-overlay').forEach(m => {
-    m.addEventListener('click', e => { if(e.target===m) m.classList.remove('active'); });
+    m.addEventListener('click', e => { if(e.target===m) closeModal(m.id); });
   });
 
   // ── INIT ──
